@@ -69,7 +69,7 @@ sudo apt-get install rust rust-cargo libgtk4-devel libadwaita-devel pipewire-uti
 ### 2. Установка
 В корне репозитория запустите скрипт установки (не требует root):
 ```bash
-git clone https://github.com/username/openmic.git
+git clone https://github.com/pgeyko/openmic.git
 cd openmic
 ./install.sh
 ```
