@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=OpenMic
+Comment=Беспроводной микрофон из Android-смартфона
+Exec=openmic-gtk
+Icon=openmic
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;Recorder;
+Keywords=microphone;audio;mic;stream;pipewire;
+StartupNotify=true
