@@ -1,0 +1,25 @@
+# Rust
+target/
+**/*.rs.bk
+Cargo.lock
+
+# Android & Gradle
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/.idea/
+android/*.iml
+android/app/*.iml
+
+# OpenCam isolated build toolchains
+.android-sdk/
+.jdk/
+.gradle-dist/
+
+# Runtime & temporary files
+*.raw
+*.log
+*.sock
+*.pipe
+/tmp/

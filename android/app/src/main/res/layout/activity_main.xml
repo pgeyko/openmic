@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootScroll"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_dark"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:id="@+id/mainLayout"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:animateLayoutChanges="true"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- Карточка 1: Статус эфира и Живая Волна -->
+        <LinearLayout
+            android:orientation="vertical"
+            android:background="@drawable/bg_card"
+            android:padding="18dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <LinearLayout
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <View
+                    android:id="@+id/dot"
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:layout_marginEnd="10dp" />
+
+                <TextView
+                    android:id="@+id/state"
+                    android:text="Остановлен"
+                    android:textColor="@color/text_primary"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:layout_weight="1"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content" />
+
+                <ProgressBar
+                    android:id="@+id/spinner"
+                    android:indeterminate="true"
+                    android:visibility="gone"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp" />
+            </LinearLayout>
+
+            <!-- Адрес подключения в режиме эфира -->
+            <TextView
+                android:id="@+id/onAirTarget"
+                android:text="ПК: 192.168.1.60:59100"
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp"
+                android:visibility="gone"
+                android:layout_marginTop="4dp"
+                android:layout_marginStart="22dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <!-- График-волна уровня -->
+            <com.openmic.app.WaveView
+                android:id="@+id/level"
+                android:layout_width="match_parent"
+                android:layout_height="72dp"
+                android:layout_marginTop="14dp" />
+        </LinearLayout>
+
+        <!-- Главные кнопки управления (Старт / Стоп) -->
+        <Button
+            android:id="@+id/start"
+            android:text="Начать эфир"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:background="@drawable/btn_primary"
+            android:layout_marginTop="14dp"
+            android:layout_width="match_parent"
+            android:layout_height="50dp" />
+
+        <Button
+            android:id="@+id/stop"
+            android:text="Остановить эфир"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:background="@drawable/btn_danger"
+            android:visibility="gone"
+            android:layout_marginTop="14dp"
+            android:layout_width="match_parent"
+            android:layout_height="50dp" />
+
+        <!-- БЛОК ПОДКЛЮЧЕНИЯ (Скрывается в режиме эфира) -->
+        <LinearLayout
+            android:id="@+id/connectionSection"
+            android:orientation="vertical"
+            android:background="@drawable/bg_card"
+            android:padding="18dp"
+            android:layout_marginTop="14dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:text="Подключение к ПК"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <Button
+                android:id="@+id/scan"
+                android:text="Сканировать QR-код"
+                android:textColor="@color/text_primary"
+                android:background="@drawable/btn_secondary"
+                android:layout_marginTop="12dp"
+                android:layout_width="match_parent"
+                android:layout_height="46dp" />
+
+            <TextView
+                android:id="@+id/toggleManual"
+                android:text="Ввести параметры вручную"
+                android:textColor="@color/accent_blue"
+                android:textSize="13sp"
+                android:paddingTop="12dp"
+                android:paddingBottom="4dp"
+                android:gravity="center"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <LinearLayout
+                android:id="@+id/manualFields"
+                android:orientation="vertical"
+                android:visibility="gone"
+                android:layout_marginTop="8dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <EditText
+                    android:id="@+id/ip"
+                    android:hint="IP ПК (напр. 192.168.1.60)"
+                    android:textColorHint="@color/text_secondary"
+                    android:textSize="14sp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+
+                <EditText
+                    android:id="@+id/port"
+                    android:hint="Порт (59100)"
+                    android:textColorHint="@color/text_secondary"
+                    android:inputType="number"
+                    android:textSize="14sp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+
+                <EditText
+                    android:id="@+id/token"
+                    android:hint="Токен сопряжения"
+                    android:textColorHint="@color/text_secondary"
+                    android:textSize="14sp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- БЛОК НАСТРОЕК МИКРОФОНА И САМОКОНТРОЛЯ -->
+        <LinearLayout
+            android:orientation="vertical"
+            android:background="@drawable/bg_card"
+            android:padding="18dp"
+            android:layout_marginTop="14dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:text="Настройки звука"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:text="Источник звука"
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp"
+                android:layout_marginTop="10dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <Spinner
+                android:id="@+id/source"
+                android:layout_marginTop="4dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <CheckBox
+                android:id="@+id/ns"
+                android:text="Шумоподавление"
+                android:layout_marginTop="8dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <CheckBox
+                android:id="@+id/keepScreen"
+                android:text="Не гасить экран во время работы"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <View
+                android:background="@color/card_stroke"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="12dp"
+                android:layout_width="match_parent"
+                android:layout_height="1dp" />
+
+            <CheckBox
+                android:id="@+id/monitor"
+                android:text="Самоконтроль (в наушники)"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/volLabel"
+                android:text="Громкость наушников: 70%"
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp"
+                android:layout_marginTop="6dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <SeekBar
+                android:id="@+id/monitorVol"
+                android:max="100"
+                android:layout_marginTop="4dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:text="Задержка через Bluetooth составляет 150–300 мс. Во избежание акустической обратной связи не включайте без наушников."
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp"
+                android:lineSpacingExtra="2dp"
+                android:layout_marginTop="6dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

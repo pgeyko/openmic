@@ -1,0 +1,18 @@
+[package]
+name = "openmic-gtk"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "openmic-gtk"
+path = "src/main.rs"
+
+[dependencies]
+openmic-proto = { path = "../openmic-proto" }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+gtk = { package = "gtk4", version = "0.9" }
+adw = { package = "libadwaita", version = "0.7" }
+qrcode = "0.14"
+libc = "0.2"

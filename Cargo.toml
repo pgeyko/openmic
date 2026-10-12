@@ -1,0 +1,3 @@
+[workspace]
+members = ["crates/openmic-proto", "crates/openmicd", "crates/openmic-cli", "crates/openmic-gtk"]
+resolver = "2"

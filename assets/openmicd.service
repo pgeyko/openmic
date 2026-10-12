@@ -1,0 +1,13 @@
+[Unit]
+Description=OpenMic daemon (phone as microphone over Wi-Fi)
+After=pipewire.service pipewire-pulse.service
+Wants=pipewire.service
+
+[Service]
+ExecStart=%h/.local/bin/openmicd
+Restart=on-failure
+RestartSec=2
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=default.target
