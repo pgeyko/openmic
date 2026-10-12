@@ -246,6 +246,8 @@ class MainActivity : android.app.Activity() {
 
         findViewById<Button>(R.id.scan).setOnClickListener {
             IntentIntegrator(this).apply {
+                setCaptureActivity(PortraitCaptureActivity::class.java)
+                setOrientationLocked(true)
                 setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
                 setPrompt("Наведите на QR в приложении на ПК")
                 setBeepEnabled(false)
