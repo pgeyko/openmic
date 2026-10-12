@@ -153,6 +153,27 @@ class MainActivity : android.app.Activity() {
         port.setText(savedPort)
         token.setText(savedToken)
 
+        val rbWifi = findViewById<RadioButton>(R.id.rbWifi)
+        val rbUsb = findViewById<RadioButton>(R.id.rbUsb)
+        val isUsbMode = prefs.getBoolean("isUsb", false)
+        if (isUsbMode) rbUsb.isChecked = true else rbWifi.isChecked = true
+
+        rbUsb.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("isUsb", isChecked).apply()
+            if (isChecked) {
+                // В USB-режиме хост всегда локальный (через adb forward)
+                ip.setText("127.0.0.1")
+            } else {
+                ip.setText(prefs.getString("savedWifiIp", savedIp))
+            }
+        }
+        rbWifi.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                prefs.edit().putBoolean("isUsb", false).apply()
+                ip.setText(prefs.getString("savedWifiIp", savedIp))
+            }
+        }
+
         // Если токен уже есть — поля ручного ввода скрыты, показываем сканер. Если пустой — открываем.
         if (savedToken.isBlank()) {
             manualFields.visibility = View.VISIBLE
@@ -216,15 +237,19 @@ class MainActivity : android.app.Activity() {
         requestPerms()
 
         startBtn.setOnClickListener {
-            prefs.edit()
-                .putString("ip", ip.text.toString().trim())
+            val currentIp = ip.text.toString().trim()
+            val edit = prefs.edit()
+                .putString("ip", currentIp)
                 .putString("port", port.text.toString().trim())
                 .putString("token", token.text.toString().trim())
                 .putBoolean("monitor", monitor.isChecked)
                 .putInt("monitorVol", monitorVol.progress)
                 .putInt("sourceIdx", source.selectedItemPosition)
                 .putBoolean("ns", ns.isChecked)
-                .apply()
+            if (currentIp != "127.0.0.1") {
+                edit.putString("savedWifiIp", currentIp)
+            }
+            edit.apply()
 
             val svc = Intent(this, MicService::class.java)
                 .putExtra("host", ip.text.toString().trim())

@@ -150,6 +150,13 @@ fn find_daemon() -> PathBuf {
 
 impl DaemonGuard {
     fn start_if_needed(&mut self) -> bool {
+        // Поддержка USB-режима: автоматически пробрасываем порт через adb forward, если adb доступен
+        std::thread::spawn(|| {
+            let _ = Command::new("adb")
+                .args(["forward", &format!("tcp:{}", openmic_proto::DEFAULT_PORT), &format!("tcp:{}", openmic_proto::DEFAULT_PORT)])
+                .output();
+        });
+
         if send("{\"status\":true}").is_some() {
             eprintln!("[gui] daemon already running, attaching");
             return true;
