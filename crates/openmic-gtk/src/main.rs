@@ -150,10 +150,11 @@ fn find_daemon() -> PathBuf {
 
 impl DaemonGuard {
     fn start_if_needed(&mut self) -> bool {
-        // Поддержка USB-режима: автоматически пробрасываем порт через adb forward, если adb доступен
+        // Поддержка USB-режима: пробрасываем порт с телефона на ПК (reverse: телефон 127.0.0.1:59100 -> ПК 59100).
+        // Внимание: adb forward слушает порт на ПК и блокирует запуск openmicd. Нужен adb reverse!
         std::thread::spawn(|| {
             let _ = Command::new("adb")
-                .args(["forward", &format!("tcp:{}", openmic_proto::DEFAULT_PORT), &format!("tcp:{}", openmic_proto::DEFAULT_PORT)])
+                .args(["reverse", &format!("tcp:{}", openmic_proto::DEFAULT_PORT), &format!("tcp:{}", openmic_proto::DEFAULT_PORT)])
                 .output();
         });
 
