@@ -152,6 +152,7 @@ pub fn socket_path() -> PathBuf {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct Req {
     gain: Option<u16>,
     mute: Option<bool>,
