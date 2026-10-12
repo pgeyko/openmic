@@ -1,10 +1,31 @@
 [Desktop Entry]
 Name=OpenMic
-Comment=Беспроводной микрофон из Android-смартфона
+Name[ru]=OpenMic
+GenericName=Wireless Microphone
+GenericName[ru]=Беспроводной микрофон
+Comment=Use Android phone as a high-quality Linux microphone over Wi-Fi or USB
+Comment[ru]=Использование Android-смартфона как качественного микрофона для Linux по Wi-Fi или USB
 Exec=openmic-gtk
 Icon=openmic
 Terminal=false
 Type=Application
 Categories=AudioVideo;Audio;Recorder;
-Keywords=microphone;audio;mic;stream;pipewire;
+Keywords=microphone;audio;mic;stream;pipewire;voice;sound;droidcam;womic;
+StartupWMClass=openmic-gtk
 StartupNotify=true
+Actions=Status;Mute;Unmute;
+
+[Desktop Action Status]
+Name=Status
+Name[ru]=Статус подключения
+Exec=openmic status
+
+[Desktop Action Mute]
+Name=Mute Microphone
+Name[ru]=Заглушить микрофон
+Exec=openmic mute
+
+[Desktop Action Unmute]
+Name=Unmute Microphone
+Name[ru]=Включить микрофон
+Exec=openmic unmute
