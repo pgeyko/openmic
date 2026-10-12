@@ -222,34 +222,43 @@
 
             <CheckBox
                 android:id="@+id/monitor"
+                android:checked="false"
                 android:text="Самоконтроль (в наушники)"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
 
-            <TextView
-                android:id="@+id/volLabel"
-                android:text="Громкость наушников: 70%"
-                android:textColor="@color/text_secondary"
-                android:textSize="13sp"
-                android:layout_marginTop="6dp"
+            <LinearLayout
+                android:id="@+id/monitorSettings"
+                android:orientation="vertical"
+                android:visibility="gone"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content">
 
-            <SeekBar
-                android:id="@+id/monitorVol"
-                android:max="100"
-                android:layout_marginTop="4dp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                <TextView
+                    android:id="@+id/volLabel"
+                    android:text="Громкость наушников: 70%"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:layout_marginTop="6dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
 
-            <TextView
-                android:text="Задержка через Bluetooth составляет 150–300 мс. Во избежание акустической обратной связи не включайте без наушников."
-                android:textColor="@color/text_secondary"
-                android:textSize="11sp"
-                android:lineSpacingExtra="2dp"
-                android:layout_marginTop="6dp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                <SeekBar
+                    android:id="@+id/monitorVol"
+                    android:max="100"
+                    android:layout_marginTop="4dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+
+                <TextView
+                    android:text="Задержка через Bluetooth составляет 150–300 мс. Во избежание акустической обратной связи не включайте без наушников."
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11sp"
+                    android:lineSpacingExtra="2dp"
+                    android:layout_marginTop="6dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
         </LinearLayout>
 
     </LinearLayout>

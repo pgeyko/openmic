@@ -171,7 +171,14 @@ class MainActivity : android.app.Activity() {
         }
 
         val monitor = findViewById<CheckBox>(R.id.monitor)
-        monitor.isChecked = prefs.getBoolean("monitor", false)
+        val monitorSettings = findViewById<View>(R.id.monitorSettings)
+        val isMonitorEnabled = prefs.getBoolean("monitor", false)
+        monitor.isChecked = isMonitorEnabled
+        monitorSettings.visibility = if (isMonitorEnabled) View.VISIBLE else View.GONE
+        monitor.setOnCheckedChangeListener { _, isChecked ->
+            TransitionManager.beginDelayedTransition(rootScroll)
+            monitorSettings.visibility = if (isChecked) View.VISIBLE else View.GONE
+        }
         val savedVol = prefs.getInt("monitorVol", 70)
         monitorVol.progress = savedVol
         volLabel.text = "Громкость наушников: $savedVol%"
