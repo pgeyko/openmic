@@ -53,6 +53,8 @@ install -m 644 assets/openmic.svg "${ICON_BASE}/scalable/apps/openmic.svg"
 echo "-> Установка десктоп-ярлыка меню..."
 mkdir -p "${APP_DIR}"
 install -m 644 assets/openmic.desktop "${APP_DIR}/openmic.desktop"
+# Подставляем абсолютный путь к бинарнику для гарантированного запуска через меню/лаунчеры
+sed -i "s|^Exec=.*|Exec=${BIN_DIR}/openmic-gtk|" "${APP_DIR}/openmic.desktop"
 
 echo "-> Установка systemd user-сервиса..."
 mkdir -p "${SYSTEMD_DIR}"
