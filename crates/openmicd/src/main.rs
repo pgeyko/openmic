@@ -181,15 +181,25 @@ async fn main() -> Result<()> {
     tokio::spawn(control::serve(ctl.clone()));
 
     let listener = TcpListener::bind(("0.0.0.0", args.port)).await?;
+    let active_session: std::sync::Arc<tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>> =
+        std::sync::Arc::new(tokio::sync::Mutex::new(None));
+
     loop {
         let (stream, _) = listener.accept().await?;
         let expected = token.clone();
         let pw = pw.clone();
         let ctl = ctl.clone();
-        tokio::spawn(async move {
+
+        let handle = tokio::spawn(async move {
             if let Err(e) = handle_client(stream, &expected, pw, ctl).await {
                 eprintln!("[openmicd] session error: {e:#}");
             }
         });
+
+        let mut slot = active_session.lock().await;
+        if let Some(old) = slot.replace(handle) {
+            eprintln!("[openmicd] aborting previous client session for new connection");
+            old.abort();
+        }
     }
 }

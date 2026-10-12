@@ -92,6 +92,7 @@ class NetClient(
         lenBuf.putInt(bytes)
         o.write(lenBuf.array())
         o.write(pcm, 0, bytes)
+        o.flush() // гарантируем немедленный уход в сеть без накопления задержки
     }
 
     fun close() {

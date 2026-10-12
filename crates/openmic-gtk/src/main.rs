@@ -96,7 +96,7 @@ fn copy_button(text: &str) -> gtk::Button {
 }
 
 /// Строка «Имя: значение [копировать]» для параметров сопряжения.
-fn field_row(name: &str, value: &str) -> gtk::Box {
+fn field_row(name: &str, value: &str) -> (gtk::Box, gtk::Label) {
     let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     let name_lbl = gtk::Label::new(Some(name));
     name_lbl.set_width_chars(6);
@@ -114,7 +114,7 @@ fn field_row(name: &str, value: &str) -> gtk::Box {
     row.append(&name_lbl);
     row.append(&val);
     row.append(&copy_button(value));
-    row
+    (row, val)
 }
 
 fn fmt_dur(d: Duration) -> String {
@@ -375,18 +375,21 @@ fn build_ui(app: &adw::Application, guard: Rc<RefCell<DaemonGuard>>) {
     card_conn.set_title("Сопряжение телефона");
 
     let conn_box = gtk::Box::new(gtk::Orientation::Horizontal, 14);
+    let pic = gtk::Picture::new();
+    pic.set_size_request(130, 130);
+    pic.set_valign(gtk::Align::Start);
     if let Some(pb) = qr_pixbuf(&qr_json, 3) {
-        let pic = gtk::Picture::for_pixbuf(&pb);
-        pic.set_size_request(130, 130);
-        pic.set_valign(gtk::Align::Start);
-        conn_box.append(&pic);
+        pic.set_pixbuf(Some(&pb));
     }
+    conn_box.append(&pic);
 
     let fields = gtk::Box::new(gtk::Orientation::Vertical, 4);
     fields.set_hexpand(true);
     fields.set_valign(gtk::Align::Center);
-    fields.append(&field_row("IP", &ip));
-    fields.append(&field_row("Порт", &port));
+    let (ip_row, ip_val_lbl) = field_row("IP", &ip);
+    let (port_row, _) = field_row("Порт", &port);
+    fields.append(&ip_row);
+    fields.append(&port_row);
 
     // Токен
     let tok_row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
@@ -467,6 +470,13 @@ fn build_ui(app: &adw::Application, guard: Rc<RefCell<DaemonGuard>>) {
     let hist_w = wave_history.clone();
     let mut air_since: Option<Instant> = None;
     let mut was_connected = false;
+    let mut fast_ticks: u32 = 0;
+
+    let mut last_ip = ip.clone();
+    let pic_c = pic.clone();
+    let ip_val_c = ip_val_lbl.clone();
+    let token_c = token.clone();
+    let port_c = port.clone();
 
     glib::timeout_add_local(Duration::from_millis(100), move || {
         let (st, up) = shared
@@ -528,6 +538,20 @@ fn build_ui(app: &adw::Application, guard: Rc<RefCell<DaemonGuard>>) {
                 was_connected = false;
             }
         }
+        // Периодическая проверка смены IP адреса ПК (раз в 3 секунды)
+        if fast_ticks % 30 == 0 {
+            let current_ip = openmic_proto::local::lan_ip_hint();
+            if current_ip != last_ip {
+                last_ip = current_ip.clone();
+                ip_val_c.set_label(&current_ip);
+                let new_qr = format!("{{\"ip\":\"{current_ip}\",\"port\":{port_c},\"token\":\"{token_c}\"}}");
+                if let Some(pb) = qr_pixbuf(&new_qr, 3) {
+                    pic_c.set_pixbuf(Some(&pb));
+                }
+            }
+        }
+        fast_ticks = fast_ticks.wrapping_add(1);
+
         glib::ControlFlow::Continue
     });
 
