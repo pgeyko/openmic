@@ -226,24 +226,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
 
-            <TextView
-                android:text="Источник звука"
-                android:textColor="@color/text_secondary"
-                android:textSize="13sp"
-                android:layout_marginTop="10dp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
-
-            <Spinner
-                android:id="@+id/source"
-                android:layout_marginTop="4dp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
-
             <CheckBox
                 android:id="@+id/ns"
                 android:text="Шумоподавление"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="10dp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
 

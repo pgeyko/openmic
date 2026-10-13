@@ -61,12 +61,9 @@ class MicService : Service() {
         if (host.isBlank() || token.isBlank()) return START_STICKY
         val monitor = intent?.getBooleanExtra("monitor", false) ?: false
         val monitorVol = intent?.getIntExtra("monitorVol", 70) ?: 70
-        val audioSource = intent?.getIntExtra(
-            "audioSource", MediaRecorder.AudioSource.VOICE_RECOGNITION
-        ) ?: MediaRecorder.AudioSource.VOICE_RECOGNITION
         val ns = intent?.getBooleanExtra("ns", false) ?: false
         gen++ // старый воркер (если пережил join) увидит чужое поколение и выйдет
-        startStream(host, port, token, monitor, monitorVol, audioSource, ns, gen)
+        startStream(host, port, token, monitor, monitorVol, ns, gen)
         return START_STICKY
     }
 
@@ -80,7 +77,7 @@ class MicService : Service() {
 
     private fun startStream(
         host: String, port: Int, token: String,
-        monitor: Boolean, monitorVol: Int, audioSource: Int, ns: Boolean,
+        monitor: Boolean, monitorVol: Int, ns: Boolean,
         myGen: Int,
     ) {
         fun alive() = running && gen == myGen
@@ -123,8 +120,9 @@ class MicService : Service() {
                     AudioFormat.CHANNEL_IN_MONO,
                     AudioFormat.ENCODING_PCM_16BIT,
                 )
+                // Используем стандартный физический микрофон MIC (как в scrcpy)
                 rec = AudioRecord(
-                    audioSource,
+                    MediaRecorder.AudioSource.MIC,
                     SAMPLE_RATE,
                     AudioFormat.CHANNEL_IN_MONO,
                     AudioFormat.ENCODING_PCM_16BIT,

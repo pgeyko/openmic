@@ -211,13 +211,6 @@ class MainActivity : android.app.Activity() {
             override fun onStopTrackingTouch(sb: SeekBar?) {}
         })
 
-        val sources = listOf("VOICE_COMMUNICATION (Рекомендуется)", "MIC (Стандартный)", "VOICE_RECOGNITION", "CAMCORDER", "UNPROCESSED")
-        val source = findViewById<Spinner>(R.id.source)
-        source.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, sources).apply {
-            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        }
-        source.setSelection(prefs.getInt("sourceIdx", 0))
-
         val ns = findViewById<CheckBox>(R.id.ns)
         ns.isChecked = prefs.getBoolean("ns", false)
         if (!android.media.audiofx.NoiseSuppressor.isAvailable()) {
@@ -244,7 +237,6 @@ class MainActivity : android.app.Activity() {
                 .putString("token", token.text.toString().trim())
                 .putBoolean("monitor", monitor.isChecked)
                 .putInt("monitorVol", monitorVol.progress)
-                .putInt("sourceIdx", source.selectedItemPosition)
                 .putBoolean("ns", ns.isChecked)
             if (currentIp != "127.0.0.1") {
                 edit.putString("savedWifiIp", currentIp)
@@ -257,7 +249,6 @@ class MainActivity : android.app.Activity() {
                 .putExtra("token", token.text.toString().trim())
                 .putExtra("monitor", monitor.isChecked)
                 .putExtra("monitorVol", monitorVol.progress)
-                .putExtra("audioSource", audioSourceAt(source.selectedItemPosition))
                 .putExtra("ns", ns.isChecked)
 
             setStatus("подключение…")
@@ -345,15 +336,6 @@ class MainActivity : android.app.Activity() {
     private fun applyKeepScreen(on: Boolean) {
         if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-    }
-
-    private fun audioSourceAt(idx: Int): Int = when (idx) {
-        0 -> android.media.MediaRecorder.AudioSource.VOICE_COMMUNICATION
-        1 -> android.media.MediaRecorder.AudioSource.MIC
-        2 -> android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION
-        3 -> android.media.MediaRecorder.AudioSource.CAMCORDER
-        4 -> android.media.MediaRecorder.AudioSource.UNPROCESSED
-        else -> android.media.MediaRecorder.AudioSource.VOICE_COMMUNICATION
     }
 
     private fun requestPerms() {

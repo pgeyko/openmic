@@ -1,22 +1,20 @@
-//! PipeWire sink через `module-pipe-source` + неблокирующий FIFO.
+//! PipeWire sink на базе связки `pw-loopback` + `paplay` (как в phonecam).
 //!
-//! Модуль живёт независимо от демона — устройство не пропадает из системы.
-//! Запись в FIFO ведётся в НЕБЛОКИРУЮЩЕМ режиме: если приложение-потребитель
-//! (Chrome, Telegram, Discord) ещё не читает микрофон или притормаживает,
-//! writer-тред не зависает наглухо, а аудио-поток не буферизуется пачками,
-//! вызывая заикание и рассинхрон.
+//! Создаёт виртуальную пару PipeWire узлов:
+//! 1. OpenMicSink (Audio/Sink, стерео [FL,FR]) — виртуальный приёмник
+//! 2. OpenMic (Audio/Source, стерео [FL,FR]) — виртуальный системный микрофон
+//!
+//! Смартфон шлёт моно-звук 48 кГц S16LE. Мы дублируем моно в стерео (L=R)
+//! и отправляем непрерывным потоком в `paplay -d OpenMicSink`.
+//! Это даёт безупречно чистый звук без треска, щелчков и заиканий FIFO.
 
-use std::fs::OpenOptions;
-use std::os::unix::fs::{FileTypeExt as _, OpenOptionsExt as _};
-use std::os::unix::io::AsRawFd;
-use std::path::PathBuf;
-use std::process::Command;
+use std::io::Write;
+use std::process::{Child, Command, Stdio};
 use std::sync::mpsc;
 use std::time::Duration;
 
+const SINK_NAME: &str = "OpenMicSink";
 const SOURCE_NAME: &str = "OpenMic";
-/// 20 мс при 48 кГц моно S16LE.
-const SILENCE: [u8; 1920] = [0u8; 1920];
 
 /// Ручка из tokio-тасков в writer-тред. Клонируется на каждое соединение.
 #[derive(Clone)]
@@ -29,135 +27,129 @@ impl PipewireHandle {
         if pcm_le.is_empty() {
             return;
         }
-        // Отправка в writer-тред без блокировки сетевого цикла
-        let _ = self.tx.send(pcm_le.to_vec());
+        // Моно -> стерео дублирование (2 байта моно -> 4 байта стерео L+R)
+        let mut stereo = Vec::with_capacity(pcm_le.len() * 2);
+        for chunk in pcm_le.chunks_exact(2) {
+            stereo.extend_from_slice(chunk);
+            stereo.extend_from_slice(chunk);
+        }
+        let _ = self.tx.send(stereo);
     }
 }
 
 pub fn spawn() -> anyhow::Result<PipewireHandle> {
-    let fifo = fifo_path();
-    ensure_fifo(&fifo)?;
-    ensure_module(&fifo)?;
+    ensure_pw_loopback()?;
+
     let (tx, rx) = mpsc::channel::<Vec<u8>>();
     std::thread::Builder::new()
-        .name("openmic-pw".into())
-        .spawn(move || writer_loop(rx, fifo))?;
+        .name("openmic-play".into())
+        .spawn(move || feeder_loop(rx))?;
+
     Ok(PipewireHandle { tx })
 }
 
-fn fifo_path() -> PathBuf {
-    if let Ok(rt) = std::env::var("XDG_RUNTIME_DIR") {
-        return PathBuf::from(rt).join("openmic.pipe");
-    }
-    let user = std::env::var("USER").unwrap_or_else(|_| "def".into());
-    PathBuf::from(format!("/tmp/openmic-{user}.pipe"))
-}
-
-fn ensure_fifo(path: &std::path::Path) -> anyhow::Result<()> {
-    if let Ok(meta) = std::fs::symlink_metadata(path) {
-        if meta.file_type().is_fifo() {
-            return Ok(());
-        }
-        anyhow::bail!("{} существует и это не FIFO", path.display());
-    }
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir)?;
-    }
-    let st = Command::new("mkfifo").arg(path).status()?;
-    if !st.success() {
-        anyhow::bail!("mkfifo {} failed", path.display());
-    }
-    Ok(())
-}
-
-fn pactl(args: &[&str]) -> anyhow::Result<String> {
-    let out = Command::new("pactl").args(args).output()?;
-    if !out.status.success() {
-        anyhow::bail!("pactl {args:?} failed: {}", String::from_utf8_lossy(&out.stderr));
-    }
-    Ok(String::from_utf8_lossy(&out.stdout).into_owned())
-}
-
-/// Идемпотентно: грузит module-pipe-source, только если источника ещё нет.
-fn ensure_module(fifo: &std::path::Path) -> anyhow::Result<()> {
-    let sources = pactl(&["list", "sources", "short"]).unwrap_or_default();
-    let has = sources
-        .lines()
-        .any(|l| l.split_whitespace().nth(1) == Some(SOURCE_NAME));
-    if has {
+/// Проверяет, запущен ли `pw-loopback` с OpenMicSink, и при необходимости стартует его
+fn ensure_pw_loopback() -> anyhow::Result<()> {
+    let out = Command::new("pactl").args(["list", "short", "sinks"]).output()?;
+    let sinks = String::from_utf8_lossy(&out.stdout);
+    if sinks.contains(SINK_NAME) {
         return Ok(());
     }
-    pactl(&[
-        "load-module",
-        "module-pipe-source",
-        &format!("source_name={SOURCE_NAME}"),
-        &format!("file={}", fifo.display()),
-        "format=s16le",
-        "rate=48000",
-        "channels=1",
-        "source_properties=device.description=OpenMic",
-    ])?;
-    Ok(())
-}
 
-/// Пишет в FIFO через libc::write с флагом O_NONBLOCK.
-/// Если потребитель не читает, либо буфер полон — сэмпл отбрасывается без блокировки,
-/// предотвращая заикания и взрывной лаг при возобновлении чтения.
-fn nonblocking_write(fd: i32, data: &[u8]) -> bool {
-    let res = unsafe { libc::write(fd, data.as_ptr() as *const libc::c_void, data.len()) };
-    if res < 0 {
-        let err = std::io::Error::last_os_error();
-        if err.raw_os_error() == Some(libc::EAGAIN) || err.raw_os_error() == Some(libc::EWOULDBLOCK) {
-            // Буфер полон (потребитель временно спит) — это норма, дропаем чанк
-            return true;
+    // Запускаем фоновый процесс pw-loopback
+    let capture_props = format!(
+        "node.name={SINK_NAME} node.description=\"{SINK_NAME}\" media.class=Audio/Sink audio.position=[FL,FR]"
+    );
+    let playback_props = format!(
+        "node.name={SOURCE_NAME} node.description=\"{SOURCE_NAME}\" media.class=Audio/Source audio.position=[FL,FR]"
+    );
+
+    Command::new("pw-loopback")
+        .args([
+            "--capture-props",
+            &capture_props,
+            "--playback-props",
+            &playback_props,
+        ])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()?;
+
+    // Ждём появления узла в системе
+    for _ in 0..30 {
+        std::thread::sleep(Duration::from_millis(100));
+        if let Ok(out) = Command::new("pactl").args(["list", "short", "sinks"]).output() {
+            if String::from_utf8_lossy(&out.stdout).contains(SINK_NAME) {
+                return Ok(());
+            }
         }
-        // Сломанная труба (EPIPE)
-        return false;
     }
-    true
+
+    anyhow::bail!("PipeWire не создал виртуальный узел {SINK_NAME}");
 }
 
-fn writer_loop(rx: mpsc::Receiver<Vec<u8>>, fifo: PathBuf) {
+/// Поток подачи звука через paplay в OpenMicSink
+fn feeder_loop(rx: mpsc::Receiver<Vec<u8>>) {
+    // 20 мс тишины в стерео 48 кГц S16LE (960 фреймов * 2 канала * 2 байта = 3840 байт)
+    let silence = [0u8; 3840];
+
     loop {
-        // Открываем FIFO с флагом O_NONBLOCK
-        let file = match OpenOptions::new()
-            .write(true)
-            .custom_flags(libc::O_NONBLOCK)
-            .open(&fifo)
-        {
-            Ok(f) => f,
+        let mut child = match spawn_paplay() {
+            Ok(c) => c,
             Err(e) => {
-                eprintln!("[openmicd] cannot open {}: {e:#} (retry 1s)", fifo.display());
+                eprintln!("[openmicd] paplay spawn error: {e:#}, retry in 1s");
                 std::thread::sleep(Duration::from_secs(1));
                 continue;
             }
         };
 
-        let raw_fd = file.as_raw_fd();
-        let dead = loop {
+        let mut stdin = match child.stdin.take() {
+            Some(s) => s,
+            None => continue,
+        };
+
+        loop {
             match rx.recv_timeout(Duration::from_millis(20)) {
                 Ok(chunk) => {
-                    if !nonblocking_write(raw_fd, &chunk) {
-                        break true;
+                    if stdin.write_all(&chunk).is_err() {
+                        break;
                     }
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => {
-                    if !nonblocking_write(raw_fd, &SILENCE) {
-                        break true;
+                    // Пока смартфон молчит или переподключается — гоним гладкую тишину
+                    if stdin.write_all(&silence).is_err() {
+                        break;
                     }
                 }
-                Err(mpsc::RecvTimeoutError::Disconnected) => break false,
+                Err(mpsc::RecvTimeoutError::Disconnected) => {
+                    let _ = child.kill();
+                    return;
+                }
             }
-        };
-
-        if !dead {
-            break; // демон завершается
         }
 
-        eprintln!("[openmicd] pipe broken, reloading module");
-        if let Err(e) = ensure_module(&fifo) {
-            eprintln!("[openmicd] module reload failed: {e:#}");
-            std::thread::sleep(Duration::from_secs(2));
-        }
+        let _ = child.kill();
+        let _ = child.wait();
+        std::thread::sleep(Duration::from_millis(100));
     }
+}
+
+fn spawn_paplay() -> anyhow::Result<Child> {
+    let child = Command::new("paplay")
+        .args([
+            "-d",
+            SINK_NAME,
+            "--raw",
+            "--format=s16le",
+            "--rate=48000",
+            "--channels=2",
+            "--latency-msec=30",
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()?;
+
+    Ok(child)
 }

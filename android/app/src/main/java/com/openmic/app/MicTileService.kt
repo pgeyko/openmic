@@ -32,7 +32,6 @@ class MicTileService : TileService() {
                     putExtra("host", host)
                     putExtra("port", port)
                     putExtra("token", token)
-                    putExtra("audioSource", prefs.getInt("sourceIdx", 0))
                     putExtra("ns", prefs.getBoolean("ns", false))
                     putExtra("monitor", prefs.getBoolean("monitor", false))
                     putExtra("monitorVol", prefs.getInt("monitorVol", 70))
