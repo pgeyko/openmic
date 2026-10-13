@@ -211,7 +211,7 @@ class MainActivity : android.app.Activity() {
             override fun onStopTrackingTouch(sb: SeekBar?) {}
         })
 
-        val sources = listOf("VOICE_RECOGNITION", "UNPROCESSED", "CAMCORDER", "VOICE_COMMUNICATION")
+        val sources = listOf("VOICE_COMMUNICATION (Рекомендуется)", "MIC (Стандартный)", "VOICE_RECOGNITION", "CAMCORDER", "UNPROCESSED")
         val source = findViewById<Spinner>(R.id.source)
         source.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, sources).apply {
             setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
@@ -348,10 +348,12 @@ class MainActivity : android.app.Activity() {
     }
 
     private fun audioSourceAt(idx: Int): Int = when (idx) {
-        1 -> android.media.MediaRecorder.AudioSource.UNPROCESSED
-        2 -> android.media.MediaRecorder.AudioSource.CAMCORDER
-        3 -> android.media.MediaRecorder.AudioSource.VOICE_COMMUNICATION
-        else -> android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION
+        0 -> android.media.MediaRecorder.AudioSource.VOICE_COMMUNICATION
+        1 -> android.media.MediaRecorder.AudioSource.MIC
+        2 -> android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION
+        3 -> android.media.MediaRecorder.AudioSource.CAMCORDER
+        4 -> android.media.MediaRecorder.AudioSource.UNPROCESSED
+        else -> android.media.MediaRecorder.AudioSource.VOICE_COMMUNICATION
     }
 
     private fun requestPerms() {

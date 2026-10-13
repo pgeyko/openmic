@@ -1,20 +1,14 @@
-//! PipeWire sink через `module-pipe-source` + FIFO.
-//!
-//! Нативный `pipewire-rs` требует libclang для bindgen (в системе его нет),
-//! а `aplay`/`ffmpeg` игнорируют выбор null-sink (проверено: звук уходил мимо).
-//! Рабочая схема (проверена сквозным тестом, тон проходит бит-в-бит):
-//!
-//! ```text
-//! openmicd --write--> $XDG_RUNTIME_DIR/openmic.pipe (FIFO, S16LE 48к моно)
-//!     --> module-pipe-source "OpenMic" --> Chrome/pavucontrol/Zoom
-//! ```
+//! PipeWire sink через `module-pipe-source` + неблокирующий FIFO.
 //!
 //! Модуль живёт независимо от демона — устройство не пропадает из системы.
-//! Пока телефона нет, writer-тред льёт нули (20 мс), модуль не голодает.
+//! Запись в FIFO ведётся в НЕБЛОКИРУЮЩЕМ режиме: если приложение-потребитель
+//! (Chrome, Telegram, Discord) ещё не читает микрофон или притормаживает,
+//! writer-тред не зависает наглухо, а аудио-поток не буферизуется пачками,
+//! вызывая заикание и рассинхрон.
 
 use std::fs::OpenOptions;
-use std::io::Write;
-use std::os::unix::fs::FileTypeExt as _;
+use std::os::unix::fs::{FileTypeExt as _, OpenOptionsExt as _};
+use std::os::unix::io::AsRawFd;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::mpsc;
@@ -35,7 +29,7 @@ impl PipewireHandle {
         if pcm_le.is_empty() {
             return;
         }
-        // best-effort: при переполнении очереди дропаем (не блокируем сеть)
+        // Отправка в writer-тред без блокировки сетевого цикла
         let _ = self.tx.send(pcm_le.to_vec());
     }
 }
@@ -69,7 +63,6 @@ fn ensure_fifo(path: &std::path::Path) -> anyhow::Result<()> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
     }
-    // mkfifo через rustix нет в зависимостях — вызываем системный mkfifo.
     let st = Command::new("mkfifo").arg(path).status()?;
     if !st.success() {
         anyhow::bail!("mkfifo {} failed", path.display());
@@ -107,11 +100,31 @@ fn ensure_module(fifo: &std::path::Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Держит FIFO открытым, качает чанки; без данных — тишину.
-/// При EPIPE (модуль выгрузили) — пересоздаёт модуль и переоткрывает FIFO.
+/// Пишет в FIFO через libc::write с флагом O_NONBLOCK.
+/// Если потребитель не читает, либо буфер полон — сэмпл отбрасывается без блокировки,
+/// предотвращая заикания и взрывной лаг при возобновлении чтения.
+fn nonblocking_write(fd: i32, data: &[u8]) -> bool {
+    let res = unsafe { libc::write(fd, data.as_ptr() as *const libc::c_void, data.len()) };
+    if res < 0 {
+        let err = std::io::Error::last_os_error();
+        if err.raw_os_error() == Some(libc::EAGAIN) || err.raw_os_error() == Some(libc::EWOULDBLOCK) {
+            // Буфер полон (потребитель временно спит) — это норма, дропаем чанк
+            return true;
+        }
+        // Сломанная труба (EPIPE)
+        return false;
+    }
+    true
+}
+
 fn writer_loop(rx: mpsc::Receiver<Vec<u8>>, fifo: PathBuf) {
     loop {
-        let mut f = match OpenOptions::new().write(true).open(&fifo) {
+        // Открываем FIFO с флагом O_NONBLOCK
+        let file = match OpenOptions::new()
+            .write(true)
+            .custom_flags(libc::O_NONBLOCK)
+            .open(&fifo)
+        {
             Ok(f) => f,
             Err(e) => {
                 eprintln!("[openmicd] cannot open {}: {e:#} (retry 1s)", fifo.display());
@@ -119,24 +132,28 @@ fn writer_loop(rx: mpsc::Receiver<Vec<u8>>, fifo: PathBuf) {
                 continue;
             }
         };
+
+        let raw_fd = file.as_raw_fd();
         let dead = loop {
             match rx.recv_timeout(Duration::from_millis(20)) {
                 Ok(chunk) => {
-                    if f.write_all(&chunk).is_err() {
+                    if !nonblocking_write(raw_fd, &chunk) {
                         break true;
                     }
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => {
-                    if f.write_all(&SILENCE).is_err() {
+                    if !nonblocking_write(raw_fd, &SILENCE) {
                         break true;
                     }
                 }
                 Err(mpsc::RecvTimeoutError::Disconnected) => break false,
             }
         };
+
         if !dead {
             break; // демон завершается
         }
+
         eprintln!("[openmicd] pipe broken, reloading module");
         if let Err(e) = ensure_module(&fifo) {
             eprintln!("[openmicd] module reload failed: {e:#}");
